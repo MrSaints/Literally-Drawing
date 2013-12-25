@@ -1,0 +1,20 @@
+{
+  "name": "Literally-Kinetic",
+  "version": "1.0.0",
+  "authors": [
+    "Ian Lai <ian@fyianlai.com>"
+  ],
+  "license": "http://ian.mit-license.org",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "kineticjs": "~4.7.3",
+    "jquery": "~2.0.3",
+    "normalize-css": "~2.1.3"
+  }
+}
