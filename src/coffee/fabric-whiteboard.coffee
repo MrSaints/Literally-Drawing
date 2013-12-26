@@ -4,31 +4,38 @@ WB.bindEvents = (wb, canvas) ->
     tool = new fabric['PencilBrush'](canvas)
 
     ## Fabric
-    canvas.on 'mouse:down', (data) =>
-        TogetherJS.send
-            type: 'drawStart'
-            point: canvas.getPointer data.e
-        wb.isDrawing = true
+    TogetherJS.on 'ready', =>
+        $('.tjs-start').fadeOut()
 
-    canvas.on 'mouse:move', (data) =>
-        if wb.isDrawing
+        canvas.on 'mouse:down', (data) =>
             TogetherJS.send
-                type: 'drawContinue'
+                type: 'drawStart'
                 point: canvas.getPointer data.e
+            wb.isDrawing = true
 
-    canvas.on 'mouse:up', =>
-        if wb.isDrawing
-            wb.isDrawing = false
-            TogetherJS.send
-                type: 'drawEnd'
+        canvas.on 'mouse:move', (data) =>
+            if wb.isDrawing
+                TogetherJS.send
+                    type: 'drawContinue'
+                    point: canvas.getPointer data.e
+
+        canvas.on 'mouse:up', =>
+            if wb.isDrawing
+                wb.isDrawing = false
+                TogetherJS.send
+                    type: 'drawEnd'
 
     ## TogetherJS
+    TogetherJS.on 'close', =>
+        $('.tjs-start').fadeIn()
+
     TogetherJS.hub.on 'togetherjs.hello', =>
         TogetherJS.send
             type: 'init'
             data: wb.getSnapshot()
 
     TogetherJS.hub.on 'init', (snapshot) =>
+        console.log 'test'
         wb.loadSnapshot snapshot.data
 
     TogetherJS.hub.on 'drawStart', (data) =>

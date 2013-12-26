@@ -8,28 +8,34 @@
     var tool,
       _this = this;
     tool = new fabric['PencilBrush'](canvas);
-    canvas.on('mouse:down', function(data) {
-      TogetherJS.send({
-        type: 'drawStart',
-        point: canvas.getPointer(data.e)
-      });
-      return wb.isDrawing = true;
-    });
-    canvas.on('mouse:move', function(data) {
-      if (wb.isDrawing) {
-        return TogetherJS.send({
-          type: 'drawContinue',
+    TogetherJS.on('ready', function() {
+      $('.tjs-start').fadeOut();
+      canvas.on('mouse:down', function(data) {
+        TogetherJS.send({
+          type: 'drawStart',
           point: canvas.getPointer(data.e)
         });
-      }
+        return wb.isDrawing = true;
+      });
+      canvas.on('mouse:move', function(data) {
+        if (wb.isDrawing) {
+          return TogetherJS.send({
+            type: 'drawContinue',
+            point: canvas.getPointer(data.e)
+          });
+        }
+      });
+      return canvas.on('mouse:up', function() {
+        if (wb.isDrawing) {
+          wb.isDrawing = false;
+          return TogetherJS.send({
+            type: 'drawEnd'
+          });
+        }
+      });
     });
-    canvas.on('mouse:up', function() {
-      if (wb.isDrawing) {
-        wb.isDrawing = false;
-        return TogetherJS.send({
-          type: 'drawEnd'
-        });
-      }
+    TogetherJS.on('close', function() {
+      return $('.tjs-start').fadeIn();
     });
     TogetherJS.hub.on('togetherjs.hello', function() {
       return TogetherJS.send({
@@ -38,6 +44,7 @@
       });
     });
     TogetherJS.hub.on('init', function(snapshot) {
+      console.log('test');
       return wb.loadSnapshot(snapshot.data);
     });
     TogetherJS.hub.on('drawStart', function(data) {
