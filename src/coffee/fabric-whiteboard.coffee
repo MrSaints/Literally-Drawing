@@ -35,7 +35,6 @@ WB.bindEvents = (wb, canvas) ->
             data: wb.getSnapshot()
 
     TogetherJS.hub.on 'init', (snapshot) =>
-        console.log 'test'
         wb.loadSnapshot snapshot.data
 
     TogetherJS.hub.on 'drawStart', (data) =>
@@ -59,9 +58,6 @@ class WB.Core
         @isDrawing = false
 
         WB.bindEvents this, @canvas
-
-        @canvas.on 'path:created', (data) ->
-            #console.log data
 
     _createCanvas: (id) ->
         new fabric.Canvas id
