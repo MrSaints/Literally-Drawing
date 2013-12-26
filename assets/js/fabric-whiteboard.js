@@ -4,12 +4,62 @@
 
   window.WB = (_ref = window.WB) != null ? _ref : {};
 
+  WB.bindEvents = function(wb, canvas) {
+    var tool,
+      _this = this;
+    tool = new fabric['PencilBrush'](canvas);
+    canvas.on('mouse:down', function(data) {
+      TogetherJS.send({
+        type: 'drawStart',
+        point: canvas.getPointer(data.e)
+      });
+      return wb.isDrawing = true;
+    });
+    canvas.on('mouse:move', function(data) {
+      if (wb.isDrawing) {
+        return TogetherJS.send({
+          type: 'drawContinue',
+          point: canvas.getPointer(data.e)
+        });
+      }
+    });
+    canvas.on('mouse:up', function() {
+      if (wb.isDrawing) {
+        wb.isDrawing = false;
+        return TogetherJS.send({
+          type: 'drawEnd'
+        });
+      }
+    });
+    TogetherJS.hub.on('togetherjs.hello', function() {
+      return TogetherJS.send({
+        type: 'init',
+        data: wb.getSnapshot()
+      });
+    });
+    TogetherJS.hub.on('init', function(snapshot) {
+      return wb.loadSnapshot(snapshot.data);
+    });
+    TogetherJS.hub.on('drawStart', function(data) {
+      return tool.onMouseDown(data.point);
+    });
+    TogetherJS.hub.on('drawContinue', function(data) {
+      return tool.onMouseMove(data.point);
+    });
+    return TogetherJS.hub.on('drawEnd', function() {
+      return tool.onMouseUp();
+    });
+  };
+
   WB.Core = (function() {
     function Core(id) {
       this.id = id;
       this.canvas = this._createCanvas(this.id);
       this._resizeCanvas($(window).outerWidth(), $(window).outerHeight());
       this.canvas.isDrawingMode = true;
+      this.isDrawing = false;
+      WB.bindEvents(this, this.canvas);
+      this.canvas.on('path:created', function(data) {});
     }
 
     Core.prototype._createCanvas = function(id) {
@@ -19,6 +69,14 @@
     Core.prototype._resizeCanvas = function(width, height) {
       this.canvas.setHeight(height);
       return this.canvas.setWidth(width);
+    };
+
+    Core.prototype.getSnapshot = function() {
+      return JSON.stringify(this.canvas);
+    };
+
+    Core.prototype.loadSnapshot = function(data) {
+      return this.canvas.loadFromJSON(data, this.canvas.renderAll.bind(this.canvas));
     };
 
     return Core;
