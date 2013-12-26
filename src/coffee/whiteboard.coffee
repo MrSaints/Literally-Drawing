@@ -1,5 +1,8 @@
 window.WB = window.WB ? {}
 
+##
+## Events
+##
 WB.bindEvents = (wb, stage, background) ->
     background.on 'mousedown touchstart', (event) =>
         wb.begin stage.getPointerPosition().x, stage.getPointerPosition().y
@@ -17,6 +20,9 @@ WB.bindDrawingEvents = (wb, object) ->
     object.on 'mouseout mouseleave', =>
         document.body.style.cursor = 'default'
 
+##
+## Literally Kinetic / Whiteboard
+##
 class WB.Core
     constructor: ->
         @lastAction = undefined
@@ -67,6 +73,15 @@ class WB.Core
         @layer.add @lastAction if @lastAction?
         @lastAction = undefined
 
+    getSnapshot: ->
+        @stage.toJSON()
+
+    loadSnapshot: (json) ->
+        Kinetic.Node.create(json, 'js-whiteboard')
+
+##
+## Tools
+##
 class WB.Tool
     begin: (x, y, wb) ->
     continue: (x, y, wb) ->
@@ -91,5 +106,20 @@ class WB.Pencil extends WB.Tool
             stroke: 'black'
             lineCap: 'round'
             draggable: true
+            tension: 0
 
 Whiteboard = new WB.Core
+
+##
+## TogetherJS
+##
+
+## New User
+TogetherJS.hub.on 'togetherjs.hello', ->
+    TogetherJS.send
+        type: 'init'
+        image: Whiteboard.getSnapshot()
+
+TogetherJS.hub.on 'init', (data) ->
+    Whiteboard.loadSnapshot data.image
+

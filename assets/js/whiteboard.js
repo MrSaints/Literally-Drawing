@@ -93,6 +93,14 @@
       return this.lastAction = void 0;
     };
 
+    Core.prototype.getSnapshot = function() {
+      return this.stage.toJSON();
+    };
+
+    Core.prototype.loadSnapshot = function(json) {
+      return Kinetic.Node.create(json, 'js-whiteboard');
+    };
+
     return Core;
 
   })();
@@ -146,7 +154,8 @@
       return new Kinetic.Spline({
         stroke: 'black',
         lineCap: 'round',
-        draggable: true
+        draggable: true,
+        tension: 0
       });
     };
 
@@ -155,5 +164,16 @@
   })(WB.Tool);
 
   Whiteboard = new WB.Core;
+
+  TogetherJS.hub.on('togetherjs.hello', function() {
+    return TogetherJS.send({
+      type: 'init',
+      image: Whiteboard.getSnapshot()
+    });
+  });
+
+  TogetherJS.hub.on('init', function(data) {
+    return Whiteboard.loadSnapshot(data.image);
+  });
 
 }).call(this);
