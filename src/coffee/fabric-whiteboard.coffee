@@ -5,19 +5,8 @@ window.WB = window.WB ? {}
 ##
 WB.Collaborate = (wb, canvas) ->
     @TJS = TogetherJS
-
-    # @TODO Client specific instances
     @client = []
     @isDrawing = false
-
-    @broadcastObject = (data) =>
-        #console.log data
-
-    canvas.on
-        'object:moving': @broadcastObject,
-        'object:scaling': @broadcastObject,
-        'object:resizing': @broadcastObject,
-        'object:rotating': @broadcastObject
 
     # Bind Whiteboard events (OUT)
     @TJS.on 'ready', =>
@@ -40,6 +29,23 @@ WB.Collaborate = (wb, canvas) ->
             TogetherJS.send
                 type: 'drawEnd'
 
+        @modifyObject = (data) =>
+            console.log data
+            TogetherJS.send
+                type: 'objectModified'
+                id: canvas.getObjects().indexOf data.target
+                properties:
+                    angle: data.target.getAngle()
+                    left: data.target.getLeft()
+                    top: data.target.getTop()
+                    scale: data.target.getScaleX()
+
+        canvas.on
+            'object:moving': @modifyObject,
+            'object:scaling': @modifyObject,
+            'object:resizing': @modifyObject,
+            'object:rotating': @modifyObject
+
     # Bind hub events (IN)
     @TJS.hub.on 'togetherjs.hello', =>
         TogetherJS.send
@@ -58,6 +64,12 @@ WB.Collaborate = (wb, canvas) ->
 
     @TJS.hub.on 'drawEnd', (data) =>
         @client[data.clientId].onMouseUp()
+
+    @TJS.hub.on 'objectModified', (data) =>
+        object = canvas.item data.id
+        prop = data.properties
+        object.setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords()
+        canvas.renderAll()
 
 ##
 ## Literally Fabric / Whiteboard

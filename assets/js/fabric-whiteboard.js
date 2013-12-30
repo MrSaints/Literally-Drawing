@@ -9,13 +9,6 @@
     this.TJS = TogetherJS;
     this.client = [];
     this.isDrawing = false;
-    this.broadcastObject = function(data) {};
-    canvas.on({
-      'object:moving': this.broadcastObject,
-      'object:scaling': this.broadcastObject,
-      'object:resizing': this.broadcastObject,
-      'object:rotating': this.broadcastObject
-    });
     this.TJS.on('ready', function() {
       canvas.on('mouse:down', function(data) {
         if (!canvas.isDrawingMode) {
@@ -36,7 +29,7 @@
           point: canvas.getPointer(data.e)
         });
       });
-      return canvas.on('mouse:up', function(data) {
+      canvas.on('mouse:up', function(data) {
         if (!_this.isDrawing) {
           return;
         }
@@ -44,6 +37,25 @@
         return TogetherJS.send({
           type: 'drawEnd'
         });
+      });
+      _this.modifyObject = function(data) {
+        console.log(data);
+        return TogetherJS.send({
+          type: 'objectModified',
+          id: canvas.getObjects().indexOf(data.target),
+          properties: {
+            angle: data.target.getAngle(),
+            left: data.target.getLeft(),
+            top: data.target.getTop(),
+            scale: data.target.getScaleX()
+          }
+        });
+      };
+      return canvas.on({
+        'object:moving': _this.modifyObject,
+        'object:scaling': _this.modifyObject,
+        'object:resizing': _this.modifyObject,
+        'object:rotating': _this.modifyObject
       });
     });
     this.TJS.hub.on('togetherjs.hello', function() {
@@ -65,8 +77,15 @@
     this.TJS.hub.on('drawContinue', function(data) {
       return _this.client[data.clientId].onMouseMove(data.point);
     });
-    return this.TJS.hub.on('drawEnd', function(data) {
+    this.TJS.hub.on('drawEnd', function(data) {
       return _this.client[data.clientId].onMouseUp();
+    });
+    return this.TJS.hub.on('objectModified', function(data) {
+      var object, prop;
+      object = canvas.item(data.id);
+      prop = data.properties;
+      object.setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords();
+      return canvas.renderAll();
     });
   };
 
