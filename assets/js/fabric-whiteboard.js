@@ -7,7 +7,7 @@
   WB.Collaborate = function(wb, canvas) {
     var _this = this;
     this.TJS = TogetherJS;
-    this.tool = new fabric['PencilBrush'](canvas);
+    this.client = [];
     this.isDrawing = false;
     this.broadcastObject = function(data) {};
     canvas.on({
@@ -56,13 +56,17 @@
       return wb.loadSnapshot(snapshot.data);
     });
     this.TJS.hub.on('drawStart', function(data) {
-      return _this.tool.onMouseDown(data.point);
+      var _base, _name;
+      if ((_base = _this.client)[_name = data.clientId] == null) {
+        _base[_name] = new fabric['PencilBrush'](canvas);
+      }
+      return _this.client[data.clientId].onMouseDown(data.point);
     });
     this.TJS.hub.on('drawContinue', function(data) {
-      return _this.tool.onMouseMove(data.point);
+      return _this.client[data.clientId].onMouseMove(data.point);
     });
-    return this.TJS.hub.on('drawEnd', function() {
-      return _this.tool.onMouseUp();
+    return this.TJS.hub.on('drawEnd', function(data) {
+      return _this.client[data.clientId].onMouseUp();
     });
   };
 

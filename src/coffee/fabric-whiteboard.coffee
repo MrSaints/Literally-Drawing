@@ -7,7 +7,7 @@ WB.Collaborate = (wb, canvas) ->
     @TJS = TogetherJS
 
     # @TODO Client specific instances
-    @tool = new fabric['PencilBrush'](canvas)
+    @client = []
     @isDrawing = false
 
     @broadcastObject = (data) =>
@@ -19,7 +19,7 @@ WB.Collaborate = (wb, canvas) ->
         'object:resizing': @broadcastObject,
         'object:rotating': @broadcastObject
 
-    # Bind Whiteboard events
+    # Bind Whiteboard events (OUT)
     @TJS.on 'ready', =>
         canvas.on 'mouse:down', (data) =>
             return if not canvas.isDrawingMode
@@ -40,7 +40,7 @@ WB.Collaborate = (wb, canvas) ->
             TogetherJS.send
                 type: 'drawEnd'
 
-    # Bind hub events
+    # Bind hub events (IN)
     @TJS.hub.on 'togetherjs.hello', =>
         TogetherJS.send
             type: 'init'
@@ -50,13 +50,14 @@ WB.Collaborate = (wb, canvas) ->
         wb.loadSnapshot snapshot.data
 
     @TJS.hub.on 'drawStart', (data) =>
-        @tool.onMouseDown data.point
+        @client[data.clientId] ?= new fabric['PencilBrush'](canvas)
+        @client[data.clientId].onMouseDown data.point
 
     @TJS.hub.on 'drawContinue', (data) =>
-        @tool.onMouseMove data.point
+        @client[data.clientId].onMouseMove data.point
 
-    @TJS.hub.on 'drawEnd', =>
-        @tool.onMouseUp()
+    @TJS.hub.on 'drawEnd', (data) =>
+        @client[data.clientId].onMouseUp()
 
 ##
 ## Literally Fabric / Whiteboard
