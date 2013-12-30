@@ -30,9 +30,14 @@ WB.Collaborate = (wb, canvas) ->
                 type: 'drawEnd'
 
         @modifyObject = (data) =>
+            modifiedIDs =
+                if data.target.objects?
+                then canvas.getObjects().indexOf object for object in data.target.objects
+                else [ canvas.getObjects().indexOf data.target ]
+
             TogetherJS.send
                 type: 'objectModified'
-                id: canvas.getObjects().indexOf data.target
+                ids: modifiedIDs
                 properties:
                     angle: data.target.getAngle()
                     left: data.target.getLeft()
@@ -45,8 +50,9 @@ WB.Collaborate = (wb, canvas) ->
             'object:resizing': @modifyObject,
             'object:rotating': @modifyObject
 
-        canvas.on 'selection:created', (data) =>
-            # @TODO Handle group movements
+        canvas.on 'selection:cleared', (data) =>
+            TogetherJS.send
+                type: 'selectionEnd'
 
     @TJS.on 'close', =>
         canvas.off { 'mouse:down', 'mouse:move', 'mouse:up', 'object:moving', 'object:scaling', 'object:resizing', 'object:rotating' }
@@ -72,8 +78,34 @@ WB.Collaborate = (wb, canvas) ->
 
     @TJS.hub.on 'objectModified', (data) =>
         prop = data.properties
-        canvas.item(data.id).setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords()
+
+        if data.ids.length > 1
+            if not @isSelecting and not @selection?
+                @selection = new fabric.Group()
+                for id in data.ids
+                    object = canvas.item id
+                    @selection.addWithUpdate object
+                    canvas.remove object
+                canvas.add @selection
+
+            @selection.setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords()
+            canvas.renderAll()
+
+            @isSelecting = true
+        else
+            canvas.item(data.ids[0]).setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords()
+            canvas.renderAll()
+
+    @TJS.hub.on 'selectionEnd', (data) =>
+        return if not @isSelecting or not @selection?
+
+        canvas.add object for object in @selection._objects
+        @selection._restoreObjectsState()
+        canvas.remove @selection
         canvas.renderAll()
+
+        @selection = undefined
+        @isSelecting = false
 
 ##
 ## Literally Fabric / Whiteboard

@@ -39,9 +39,24 @@
         });
       });
       _this.modifyObject = function(data) {
+        var modifiedIDs, object;
+        modifiedIDs = (function() {
+          var _i, _len, _ref1, _results;
+          if (data.target.objects != null) {
+            _ref1 = data.target.objects;
+            _results = [];
+            for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+              object = _ref1[_i];
+              _results.push(canvas.getObjects().indexOf(object));
+            }
+            return _results;
+          } else {
+            return [canvas.getObjects().indexOf(data.target)];
+          }
+        })();
         return TogetherJS.send({
           type: 'objectModified',
-          id: canvas.getObjects().indexOf(data.target),
+          ids: modifiedIDs,
           properties: {
             angle: data.target.getAngle(),
             left: data.target.getLeft(),
@@ -56,7 +71,11 @@
         'object:resizing': _this.modifyObject,
         'object:rotating': _this.modifyObject
       });
-      return canvas.on('selection:created', function(data) {});
+      return canvas.on('selection:cleared', function(data) {
+        return TogetherJS.send({
+          type: 'selectionEnd'
+        });
+      });
     });
     this.TJS.on('close', function() {
       return canvas.off({
@@ -91,11 +110,43 @@
     this.TJS.hub.on('drawEnd', function(data) {
       return _this.client[data.clientId].onMouseUp();
     });
-    return this.TJS.hub.on('objectModified', function(data) {
-      var prop;
+    this.TJS.hub.on('objectModified', function(data) {
+      var id, object, prop, _i, _len, _ref1;
       prop = data.properties;
-      canvas.item(data.id).setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords();
-      return canvas.renderAll();
+      if (data.ids.length > 1) {
+        if (!_this.isSelecting && (_this.selection == null)) {
+          _this.selection = new fabric.Group();
+          _ref1 = data.ids;
+          for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+            id = _ref1[_i];
+            object = canvas.item(id);
+            _this.selection.addWithUpdate(object);
+            canvas.remove(object);
+          }
+          canvas.add(_this.selection);
+        }
+        _this.selection.setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords();
+        canvas.renderAll();
+        return _this.isSelecting = true;
+      } else {
+        canvas.item(data.ids[0]).setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords();
+        return canvas.renderAll();
+      }
+    });
+    return this.TJS.hub.on('selectionEnd', function(data) {
+      var object, _i, _len, _ref1;
+      if (!_this.isSelecting || (_this.selection == null)) {
+        return;
+      }
+      _ref1 = _this.selection._objects;
+      for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+        object = _ref1[_i];
+        canvas.add(object);
+      }
+      _this.selection._restoreObjectsState();
+      canvas.remove(_this.selection);
+      canvas.renderAll();
+      return _this.isSelecting = false;
     });
   };
 
