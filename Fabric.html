@@ -11,11 +11,16 @@
     <div class="wrapper">
         <div class="sidebar">
             <ul class="sidebar__tools">
-                <li class="sidebar__tools--select" data-tool="select"><i class="fa fa-arrows"></i></li>
+                <li class="sidebar__tools--select active" data-tool="select"><i class="fa fa-arrows"></i></li>
                 <li class="sidebar__tools--pencil" data-tool="pencil"><i class="fa fa-pencil"></i></li>
             </ul>
         </div>
         <div class="canvas"><canvas id="js-whiteboard"></canvas></div>
+        <div class="tjs-start">
+            <a onclick="TogetherJS(this); return false;">
+                <img src="//togetherjs.com/images/start-togetherjs-blue.png" style="width: 135px">
+            </a>
+        </div>
     </div>
 
     <script src="//togetherjs.com/togetherjs-min.js"></script>

@@ -4,50 +4,59 @@ window.WB = window.WB ? {}
 ## TogetherJS Events
 ##
 WB.Collaborate = (wb, canvas) ->
+    @TJS = TogetherJS
+
+    # @TODO Client specific instances
     @tool = new fabric['PencilBrush'](canvas)
     @isDrawing = false
 
+    @broadcastObject = (data) =>
+        #console.log data
+
+    canvas.on
+        'object:moving': @broadcastObject,
+        'object:scaling': @broadcastObject,
+        'object:resizing': @broadcastObject,
+        'object:rotating': @broadcastObject
+
     # Bind Whiteboard events
-    TogetherJSConfig_on =
-        ready: ->
-            canvas.on 'mouse:down', (data) =>
-                @isDrawing = true
-                TogetherJS.send
-                    type: 'drawStart'
-                    point: canvas.getPointer data.e
+    @TJS.on 'ready', =>
+        canvas.on 'mouse:down', (data) =>
+            return if not canvas.isDrawingMode
+            @isDrawing = true
+            TogetherJS.send
+                type: 'drawStart'
+                point: canvas.getPointer data.e
 
-            canvas.on 'mouse:move', (data) =>
-                return if not @isDrawing
-                TogetherJS.send
-                    type: 'drawContinue'
-                    point: canvas.getPointer data.e
+        canvas.on 'mouse:move', (data) =>
+            return if not @isDrawing
+            TogetherJS.send
+                type: 'drawContinue'
+                point: canvas.getPointer data.e
 
-            canvas.on 'mouse:up', (data) =>
-                return if not @isDrawing
-                @isDrawing = false
-                TogetherJS.send
-                    type: 'drawEnd'
-
-        close: ->
+        canvas.on 'mouse:up', (data) =>
+            return if not @isDrawing
+            @isDrawing = false
+            TogetherJS.send
+                type: 'drawEnd'
 
     # Bind hub events
-    TogetherJS_hub_on = 
-        'togetherjs.hello': ->
-            TogetherJS.send
-                type: 'init'
-                data: wb.getSnapshot()
+    @TJS.hub.on 'togetherjs.hello', =>
+        TogetherJS.send
+            type: 'init'
+            data: wb.getSnapshot()
 
-        'init': (snapshot) ->
-            wb.loadSnapshot snapshot.data
+    @TJS.hub.on 'init', (snapshot) =>
+        wb.loadSnapshot snapshot.data
 
-        'drawStart': (data) ->
-            @tool.onMouseDown data.point
+    @TJS.hub.on 'drawStart', (data) =>
+        @tool.onMouseDown data.point
 
-        'drawContinue': (data) ->
-            @tool.onMouseMove data.point
+    @TJS.hub.on 'drawContinue', (data) =>
+        @tool.onMouseMove data.point
 
-        'drawEnd': ->
-            @tool.onMouseUp()
+    @TJS.hub.on 'drawEnd', =>
+        @tool.onMouseUp()
 
 ##
 ## Literally Fabric / Whiteboard
@@ -56,8 +65,6 @@ class WB.Core
     constructor: (@id, @callback) ->
         @canvas = @_createCanvas @id
         @_resizeCanvas $(window).outerWidth(), $(window).outerHeight()
-
-        #@canvas.isDrawingMode = true
 
         @callback @, @canvas
 
