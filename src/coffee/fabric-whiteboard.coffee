@@ -30,7 +30,6 @@ WB.Collaborate = (wb, canvas) ->
                 type: 'drawEnd'
 
         @modifyObject = (data) =>
-            console.log data
             TogetherJS.send
                 type: 'objectModified'
                 id: canvas.getObjects().indexOf data.target
@@ -45,6 +44,12 @@ WB.Collaborate = (wb, canvas) ->
             'object:scaling': @modifyObject,
             'object:resizing': @modifyObject,
             'object:rotating': @modifyObject
+
+        canvas.on 'selection:created', (data) =>
+            # @TODO Handle group movements
+
+    @TJS.on 'close', =>
+        canvas.off { 'mouse:down', 'mouse:move', 'mouse:up', 'object:moving', 'object:scaling', 'object:resizing', 'object:rotating' }
 
     # Bind hub events (IN)
     @TJS.hub.on 'togetherjs.hello', =>
@@ -66,9 +71,8 @@ WB.Collaborate = (wb, canvas) ->
         @client[data.clientId].onMouseUp()
 
     @TJS.hub.on 'objectModified', (data) =>
-        object = canvas.item data.id
         prop = data.properties
-        object.setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords()
+        canvas.item(data.id).setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords()
         canvas.renderAll()
 
 ##

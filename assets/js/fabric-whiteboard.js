@@ -39,7 +39,6 @@
         });
       });
       _this.modifyObject = function(data) {
-        console.log(data);
         return TogetherJS.send({
           type: 'objectModified',
           id: canvas.getObjects().indexOf(data.target),
@@ -51,11 +50,23 @@
           }
         });
       };
-      return canvas.on({
+      canvas.on({
         'object:moving': _this.modifyObject,
         'object:scaling': _this.modifyObject,
         'object:resizing': _this.modifyObject,
         'object:rotating': _this.modifyObject
+      });
+      return canvas.on('selection:created', function(data) {});
+    });
+    this.TJS.on('close', function() {
+      return canvas.off({
+        'mouse:down': 'mouse:down',
+        'mouse:move': 'mouse:move',
+        'mouse:up': 'mouse:up',
+        'object:moving': 'object:moving',
+        'object:scaling': 'object:scaling',
+        'object:resizing': 'object:resizing',
+        'object:rotating': 'object:rotating'
       });
     });
     this.TJS.hub.on('togetherjs.hello', function() {
@@ -81,10 +92,9 @@
       return _this.client[data.clientId].onMouseUp();
     });
     return this.TJS.hub.on('objectModified', function(data) {
-      var object, prop;
-      object = canvas.item(data.id);
+      var prop;
       prop = data.properties;
-      object.setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords();
+      canvas.item(data.id).setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords();
       return canvas.renderAll();
     });
   };
