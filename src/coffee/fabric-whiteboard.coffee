@@ -1,5 +1,8 @@
 window.WB = window.WB ? {}
 
+##
+## TogetherJS Events
+##
 WB.Collaborate = (wb, canvas) ->
     @tool = new fabric['PencilBrush'](canvas)
     @isDrawing = false
@@ -50,13 +53,11 @@ WB.Collaborate = (wb, canvas) ->
 ## Literally Fabric / Whiteboard
 ##
 class WB.Core
-    constructor: (options) ->
-        {@id, @callback} = options
-
+    constructor: (@id, @callback) ->
         @canvas = @_createCanvas @id
         @_resizeCanvas $(window).outerWidth(), $(window).outerHeight()
 
-        @canvas.isDrawingMode = true
+        #@canvas.isDrawingMode = true
 
         @callback @, @canvas
 
@@ -67,10 +68,29 @@ class WB.Core
         @canvas.setHeight height
         @canvas.setWidth width
 
+    setTool: (type) ->
+        @tool = type
+        switch @tool
+            when 'pencil'
+                @canvas.isDrawingMode = true
+            else
+                @canvas.isDrawingMode = false
+
     getSnapshot: ->
         JSON.stringify @canvas
 
     loadSnapshot: (data) ->
-        @canvas.loadFromJSON data, @canvas.renderAll.bind(@canvas)
+        @canvas.loadFromJSON data, @canvas.renderAll.bind @canvas
 
 Whiteboard = new WB.Core 'js-whiteboard', WB.Collaborate
+
+##
+## Toolbelt Events
+##
+(($) ->
+    $('li[data-tool]').click ->
+        $(@).parent().find('li').removeClass 'active'
+        $(@).toggleClass 'active'
+        Whiteboard.setTool $(@).data 'tool'
+
+)(jQuery)

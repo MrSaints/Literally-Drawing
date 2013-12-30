@@ -4,69 +4,70 @@
 
   window.WB = (_ref = window.WB) != null ? _ref : {};
 
-  WB.bindEvents = function(wb, canvas) {
-    var tool,
-      _this = this;
-    tool = new fabric['PencilBrush'](canvas);
-    TogetherJS.on('ready', function() {
-      $('.tjs-start').fadeOut();
-      canvas.on('mouse:down', function(data) {
-        TogetherJS.send({
-          type: 'drawStart',
-          point: canvas.getPointer(data.e)
+  WB.Collaborate = function(wb, canvas) {
+    var TogetherJSConfig_on, TogetherJS_hub_on;
+    this.tool = new fabric['PencilBrush'](canvas);
+    this.isDrawing = false;
+    TogetherJSConfig_on = {
+      ready: function() {
+        var _this = this;
+        canvas.on('mouse:down', function(data) {
+          _this.isDrawing = true;
+          return TogetherJS.send({
+            type: 'drawStart',
+            point: canvas.getPointer(data.e)
+          });
         });
-        return wb.isDrawing = true;
-      });
-      canvas.on('mouse:move', function(data) {
-        if (wb.isDrawing) {
+        canvas.on('mouse:move', function(data) {
+          if (!_this.isDrawing) {
+            return;
+          }
           return TogetherJS.send({
             type: 'drawContinue',
             point: canvas.getPointer(data.e)
           });
-        }
-      });
-      return canvas.on('mouse:up', function() {
-        if (wb.isDrawing) {
-          wb.isDrawing = false;
+        });
+        return canvas.on('mouse:up', function(data) {
+          if (!_this.isDrawing) {
+            return;
+          }
+          _this.isDrawing = false;
           return TogetherJS.send({
             type: 'drawEnd'
           });
-        }
-      });
-    });
-    TogetherJS.on('close', function() {
-      return $('.tjs-start').fadeIn();
-    });
-    TogetherJS.hub.on('togetherjs.hello', function() {
-      return TogetherJS.send({
-        type: 'init',
-        data: wb.getSnapshot()
-      });
-    });
-    TogetherJS.hub.on('init', function(snapshot) {
-      console.log('test');
-      return wb.loadSnapshot(snapshot.data);
-    });
-    TogetherJS.hub.on('drawStart', function(data) {
-      return tool.onMouseDown(data.point);
-    });
-    TogetherJS.hub.on('drawContinue', function(data) {
-      return tool.onMouseMove(data.point);
-    });
-    return TogetherJS.hub.on('drawEnd', function() {
-      return tool.onMouseUp();
-    });
+        });
+      },
+      close: function() {}
+    };
+    return TogetherJS_hub_on = {
+      'togetherjs.hello': function() {
+        return TogetherJS.send({
+          type: 'init',
+          data: wb.getSnapshot()
+        });
+      },
+      'init': function(snapshot) {
+        return wb.loadSnapshot(snapshot.data);
+      },
+      'drawStart': function(data) {
+        return this.tool.onMouseDown(data.point);
+      },
+      'drawContinue': function(data) {
+        return this.tool.onMouseMove(data.point);
+      },
+      'drawEnd': function() {
+        return this.tool.onMouseUp();
+      }
+    };
   };
 
   WB.Core = (function() {
-    function Core(id) {
+    function Core(id, callback) {
       this.id = id;
+      this.callback = callback;
       this.canvas = this._createCanvas(this.id);
       this._resizeCanvas($(window).outerWidth(), $(window).outerHeight());
-      this.canvas.isDrawingMode = true;
-      this.isDrawing = false;
-      WB.bindEvents(this, this.canvas);
-      this.canvas.on('path:created', function(data) {});
+      this.callback(this, this.canvas);
     }
 
     Core.prototype._createCanvas = function(id) {
@@ -76,6 +77,16 @@
     Core.prototype._resizeCanvas = function(width, height) {
       this.canvas.setHeight(height);
       return this.canvas.setWidth(width);
+    };
+
+    Core.prototype.setTool = function(type) {
+      this.tool = type;
+      switch (this.tool) {
+        case 'pencil':
+          return this.canvas.isDrawingMode = true;
+        default:
+          return this.canvas.isDrawingMode = false;
+      }
     };
 
     Core.prototype.getSnapshot = function() {
@@ -90,6 +101,14 @@
 
   })();
 
-  Whiteboard = new WB.Core('js-whiteboard');
+  Whiteboard = new WB.Core('js-whiteboard', WB.Collaborate);
+
+  (function($) {
+    return $('li[data-tool]').click(function() {
+      $(this).parent().find('li').removeClass('active');
+      $(this).toggleClass('active');
+      return Whiteboard.setTool($(this).data('tool'));
+    });
+  })(jQuery);
 
 }).call(this);

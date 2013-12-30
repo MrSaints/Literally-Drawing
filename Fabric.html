@@ -3,15 +3,19 @@
 <head>
     <title>Literally Fabric (Whiteboard V3)</title>
     <link rel="stylesheet" href="bower_components/normalize-css/normalize.css">
+    <link rel="stylesheet" href="bower_components/font-awesome/css/font-awesome.min.css">
     <link rel="stylesheet" href="assets/css/whiteboard.css">
 </head>
 
 <body>
-    <canvas id="js-whiteboard"></canvas>
-    <div class="tjs-start">
-        <a onclick="TogetherJS(this); return false;">
-            <img src="https://togetherjs.com/images/start-togetherjs-blue.png" style="width: 135px">
-        </a>
+    <div class="wrapper">
+        <div class="sidebar">
+            <ul class="sidebar__tools">
+                <li class="sidebar__tools--select" data-tool="select"><i class="fa fa-arrows"></i></li>
+                <li class="sidebar__tools--pencil" data-tool="pencil"><i class="fa fa-pencil"></i></li>
+            </ul>
+        </div>
+        <div class="canvas"><canvas id="js-whiteboard"></canvas></div>
     </div>
 
     <script src="//togetherjs.com/togetherjs-min.js"></script>
