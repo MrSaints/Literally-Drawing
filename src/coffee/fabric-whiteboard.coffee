@@ -1,67 +1,111 @@
 window.WB = window.WB ? {}
 
-WB.bindEvents = (wb, canvas) ->
-    tool = new fabric['PencilBrush'](canvas)
+##
+## TogetherJS Events
+##
+WB.Collaborate = (wb, canvas) ->
+    @TJS = TogetherJS
+    @client = []
+    @isDrawing = false
 
-    ## Fabric
-    TogetherJS.on 'ready', =>
-        $('.tjs-start').fadeOut()
-
+    # Bind Whiteboard events (OUT)
+    @TJS.on 'ready', =>
         canvas.on 'mouse:down', (data) =>
+            return if not canvas.isDrawingMode
+            @isDrawing = true
             TogetherJS.send
                 type: 'drawStart'
                 point: canvas.getPointer data.e
-            wb.isDrawing = true
 
         canvas.on 'mouse:move', (data) =>
-            if wb.isDrawing
-                TogetherJS.send
-                    type: 'drawContinue'
-                    point: canvas.getPointer data.e
+            return if not @isDrawing
+            TogetherJS.send
+                type: 'drawContinue'
+                point: canvas.getPointer data.e
 
-        canvas.on 'mouse:up', =>
-            if wb.isDrawing
-                wb.isDrawing = false
-                TogetherJS.send
-                    type: 'drawEnd'
+        canvas.on 'mouse:up', (data) =>
+            return if not @isDrawing
+            @isDrawing = false
+            TogetherJS.send
+                type: 'drawEnd'
 
-    ## TogetherJS
-    TogetherJS.on 'close', =>
-        $('.tjs-start').fadeIn()
+        @modifyObject = (data) =>
+            modifiedIDs =
+                if data.target.objects?
+                then canvas.getObjects().indexOf object for object in data.target.objects
+                else [ canvas.getObjects().indexOf data.target ]
 
-    TogetherJS.hub.on 'togetherjs.hello', =>
+            TogetherJS.send
+                type: 'objectModified'
+                ids: modifiedIDs
+                properties:
+                    angle: data.target.getAngle()
+                    left: data.target.getLeft()
+                    top: data.target.getTop()
+                    scale: data.target.getScaleX()
+
+        canvas.on
+            'object:moving': @modifyObject,
+            'object:scaling': @modifyObject,
+            'object:resizing': @modifyObject,
+            'object:rotating': @modifyObject
+
+        canvas.on 'selection:cleared', (data) =>
+            TogetherJS.send
+                type: 'selectionEnd'
+
+    @TJS.on 'close', =>
+        canvas.off { 'mouse:down', 'mouse:move', 'mouse:up', 'object:moving', 'object:scaling', 'object:resizing', 'object:rotating' }
+
+    # Bind hub events (IN)
+    @TJS.hub.on 'togetherjs.hello', =>
         TogetherJS.send
             type: 'init'
             data: wb.getSnapshot()
 
-    TogetherJS.hub.on 'init', (snapshot) =>
-        console.log 'test'
+    @TJS.hub.on 'init', (snapshot) =>
         wb.loadSnapshot snapshot.data
 
-    TogetherJS.hub.on 'drawStart', (data) =>
-        tool.onMouseDown data.point
+    @TJS.hub.on 'drawStart', (data) =>
+        @client[data.clientId] ?= new fabric['PencilBrush'](canvas)
+        @client[data.clientId].onMouseDown data.point
 
-    TogetherJS.hub.on 'drawContinue', (data) =>
-        tool.onMouseMove data.point
+    @TJS.hub.on 'drawContinue', (data) =>
+        @client[data.clientId].onMouseMove data.point
 
-    TogetherJS.hub.on 'drawEnd', =>
-        tool.onMouseUp()
+    @TJS.hub.on 'drawEnd', (data) =>
+        @client[data.clientId].onMouseUp()
+
+    @TJS.hub.on 'objectModified', (data) =>
+        prop = data.properties
+
+        if data.ids.length > 1
+            if not @isSelecting and not @selection?
+                @selection = new fabric.Group (canvas.item id for id in data.ids).reverse()
+                canvas.setActiveGroup(@selection, e)
+            @selection.setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords(true)
+            @selection.saveCoords()
+            @isSelecting = true
+            canvas.renderAll()
+        else
+            canvas.item(data.ids[0]).setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords()
+            canvas.renderAll()
+
+    @TJS.hub.on 'selectionEnd', (data) =>
+        return if not @isSelecting or not @selection?
+
+        @selection = undefined
+        @isSelecting = false
 
 ##
 ## Literally Fabric / Whiteboard
 ##
 class WB.Core
-    constructor: (@id) ->
+    constructor: (@id, @callback) ->
         @canvas = @_createCanvas @id
         @_resizeCanvas $(window).outerWidth(), $(window).outerHeight()
 
-        @canvas.isDrawingMode = true
-        @isDrawing = false
-
-        WB.bindEvents this, @canvas
-
-        @canvas.on 'path:created', (data) ->
-            #console.log data
+        @callback @, @canvas
 
     _createCanvas: (id) ->
         new fabric.Canvas id
@@ -70,10 +114,29 @@ class WB.Core
         @canvas.setHeight height
         @canvas.setWidth width
 
+    setTool: (type) ->
+        @tool = type
+        switch @tool
+            when 'pencil'
+                @canvas.isDrawingMode = true
+            else
+                @canvas.isDrawingMode = false
+
     getSnapshot: ->
         JSON.stringify @canvas
 
     loadSnapshot: (data) ->
-        @canvas.loadFromJSON data, @canvas.renderAll.bind(@canvas)
+        @canvas.loadFromJSON data, @canvas.renderAll.bind @canvas
 
-Whiteboard = new WB.Core 'js-whiteboard'
+Whiteboard = new WB.Core 'js-whiteboard', WB.Collaborate
+
+##
+## Toolbelt Events
+##
+(($) ->
+    $('li[data-tool]').click ->
+        $(@).parent().find('li').removeClass 'active'
+        $(@).toggleClass 'active'
+        Whiteboard.setTool $(@).data 'tool'
+
+)(jQuery)

@@ -4,69 +4,154 @@
 
   window.WB = (_ref = window.WB) != null ? _ref : {};
 
-  WB.bindEvents = function(wb, canvas) {
-    var tool,
-      _this = this;
-    tool = new fabric['PencilBrush'](canvas);
-    TogetherJS.on('ready', function() {
-      $('.tjs-start').fadeOut();
+  WB.Collaborate = function(wb, canvas) {
+    var _this = this;
+    this.TJS = TogetherJS;
+    this.client = [];
+    this.isDrawing = false;
+    this.TJS.on('ready', function() {
       canvas.on('mouse:down', function(data) {
-        TogetherJS.send({
+        if (!canvas.isDrawingMode) {
+          return;
+        }
+        _this.isDrawing = true;
+        return TogetherJS.send({
           type: 'drawStart',
           point: canvas.getPointer(data.e)
         });
-        return wb.isDrawing = true;
       });
       canvas.on('mouse:move', function(data) {
-        if (wb.isDrawing) {
-          return TogetherJS.send({
-            type: 'drawContinue',
-            point: canvas.getPointer(data.e)
-          });
+        if (!_this.isDrawing) {
+          return;
         }
+        return TogetherJS.send({
+          type: 'drawContinue',
+          point: canvas.getPointer(data.e)
+        });
       });
-      return canvas.on('mouse:up', function() {
-        if (wb.isDrawing) {
-          wb.isDrawing = false;
-          return TogetherJS.send({
-            type: 'drawEnd'
-          });
+      canvas.on('mouse:up', function(data) {
+        if (!_this.isDrawing) {
+          return;
         }
+        _this.isDrawing = false;
+        return TogetherJS.send({
+          type: 'drawEnd'
+        });
+      });
+      _this.modifyObject = function(data) {
+        var modifiedIDs, object;
+        modifiedIDs = (function() {
+          var _i, _len, _ref1, _results;
+          if (data.target.objects != null) {
+            _ref1 = data.target.objects;
+            _results = [];
+            for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+              object = _ref1[_i];
+              _results.push(canvas.getObjects().indexOf(object));
+            }
+            return _results;
+          } else {
+            return [canvas.getObjects().indexOf(data.target)];
+          }
+        })();
+        return TogetherJS.send({
+          type: 'objectModified',
+          ids: modifiedIDs,
+          properties: {
+            angle: data.target.getAngle(),
+            left: data.target.getLeft(),
+            top: data.target.getTop(),
+            scale: data.target.getScaleX()
+          }
+        });
+      };
+      canvas.on({
+        'object:moving': _this.modifyObject,
+        'object:scaling': _this.modifyObject,
+        'object:resizing': _this.modifyObject,
+        'object:rotating': _this.modifyObject
+      });
+      return canvas.on('selection:cleared', function(data) {
+        return TogetherJS.send({
+          type: 'selectionEnd'
+        });
       });
     });
-    TogetherJS.on('close', function() {
-      return $('.tjs-start').fadeIn();
+    this.TJS.on('close', function() {
+      return canvas.off({
+        'mouse:down': 'mouse:down',
+        'mouse:move': 'mouse:move',
+        'mouse:up': 'mouse:up',
+        'object:moving': 'object:moving',
+        'object:scaling': 'object:scaling',
+        'object:resizing': 'object:resizing',
+        'object:rotating': 'object:rotating'
+      });
     });
-    TogetherJS.hub.on('togetherjs.hello', function() {
+    this.TJS.hub.on('togetherjs.hello', function() {
       return TogetherJS.send({
         type: 'init',
         data: wb.getSnapshot()
       });
     });
-    TogetherJS.hub.on('init', function(snapshot) {
-      console.log('test');
+    this.TJS.hub.on('init', function(snapshot) {
       return wb.loadSnapshot(snapshot.data);
     });
-    TogetherJS.hub.on('drawStart', function(data) {
-      return tool.onMouseDown(data.point);
+    this.TJS.hub.on('drawStart', function(data) {
+      var _base, _name;
+      if ((_base = _this.client)[_name = data.clientId] == null) {
+        _base[_name] = new fabric['PencilBrush'](canvas);
+      }
+      return _this.client[data.clientId].onMouseDown(data.point);
     });
-    TogetherJS.hub.on('drawContinue', function(data) {
-      return tool.onMouseMove(data.point);
+    this.TJS.hub.on('drawContinue', function(data) {
+      return _this.client[data.clientId].onMouseMove(data.point);
     });
-    return TogetherJS.hub.on('drawEnd', function() {
-      return tool.onMouseUp();
+    this.TJS.hub.on('drawEnd', function(data) {
+      return _this.client[data.clientId].onMouseUp();
+    });
+    this.TJS.hub.on('objectModified', function(data) {
+      var id, prop;
+      prop = data.properties;
+      if (data.ids.length > 1) {
+        if (!_this.isSelecting && (_this.selection == null)) {
+          _this.selection = new fabric.Group(((function() {
+            var _i, _len, _ref1, _results;
+            _ref1 = data.ids;
+            _results = [];
+            for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+              id = _ref1[_i];
+              _results.push(canvas.item(id));
+            }
+            return _results;
+          })()).reverse());
+          canvas.setActiveGroup(_this.selection, e);
+        }
+        _this.selection.setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords(true);
+        _this.selection.saveCoords();
+        _this.isSelecting = true;
+        return canvas.renderAll();
+      } else {
+        canvas.item(data.ids[0]).setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords();
+        return canvas.renderAll();
+      }
+    });
+    return this.TJS.hub.on('selectionEnd', function(data) {
+      if (!_this.isSelecting || (_this.selection == null)) {
+        return;
+      }
+      _this.selection = void 0;
+      return _this.isSelecting = false;
     });
   };
 
   WB.Core = (function() {
-    function Core(id) {
+    function Core(id, callback) {
       this.id = id;
+      this.callback = callback;
       this.canvas = this._createCanvas(this.id);
       this._resizeCanvas($(window).outerWidth(), $(window).outerHeight());
-      this.canvas.isDrawingMode = true;
-      this.isDrawing = false;
-      WB.bindEvents(this, this.canvas);
-      this.canvas.on('path:created', function(data) {});
+      this.callback(this, this.canvas);
     }
 
     Core.prototype._createCanvas = function(id) {
@@ -76,6 +161,16 @@
     Core.prototype._resizeCanvas = function(width, height) {
       this.canvas.setHeight(height);
       return this.canvas.setWidth(width);
+    };
+
+    Core.prototype.setTool = function(type) {
+      this.tool = type;
+      switch (this.tool) {
+        case 'pencil':
+          return this.canvas.isDrawingMode = true;
+        default:
+          return this.canvas.isDrawingMode = false;
+      }
     };
 
     Core.prototype.getSnapshot = function() {
@@ -90,6 +185,14 @@
 
   })();
 
-  Whiteboard = new WB.Core('js-whiteboard');
+  Whiteboard = new WB.Core('js-whiteboard', WB.Collaborate);
+
+  (function($) {
+    return $('li[data-tool]').click(function() {
+      $(this).parent().find('li').removeClass('active');
+      $(this).toggleClass('active');
+      return Whiteboard.setTool($(this).data('tool'));
+    });
+  })(jQuery);
 
 }).call(this);
