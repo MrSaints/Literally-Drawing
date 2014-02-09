@@ -81,28 +81,18 @@ WB.Collaborate = (wb, canvas) ->
 
         if data.ids.length > 1
             if not @isSelecting and not @selection?
-                @selection = new fabric.Group()
-                for id in data.ids
-                    object = canvas.item id
-                    @selection.addWithUpdate object
-                    canvas.remove object
-                canvas.add @selection
-
-            @selection.setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords()
-            canvas.renderAll()
-
+                @selection = new fabric.Group (canvas.item id for id in data.ids).reverse()
+                canvas.setActiveGroup(@selection, e)
+            @selection.setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords(true)
+            @selection.saveCoords()
             @isSelecting = true
+            canvas.renderAll()
         else
             canvas.item(data.ids[0]).setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords()
             canvas.renderAll()
 
     @TJS.hub.on 'selectionEnd', (data) =>
         return if not @isSelecting or not @selection?
-
-        canvas.add object for object in @selection._objects
-        @selection._restoreObjectsState()
-        canvas.remove @selection
-        canvas.renderAll()
 
         @selection = undefined
         @isSelecting = false

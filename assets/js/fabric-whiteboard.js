@@ -111,41 +111,36 @@
       return _this.client[data.clientId].onMouseUp();
     });
     this.TJS.hub.on('objectModified', function(data) {
-      var id, object, prop, _i, _len, _ref1;
+      var id, prop;
       prop = data.properties;
       if (data.ids.length > 1) {
         if (!_this.isSelecting && (_this.selection == null)) {
-          _this.selection = new fabric.Group();
-          _ref1 = data.ids;
-          for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-            id = _ref1[_i];
-            object = canvas.item(id);
-            _this.selection.addWithUpdate(object);
-            canvas.remove(object);
-          }
-          canvas.add(_this.selection);
+          _this.selection = new fabric.Group(((function() {
+            var _i, _len, _ref1, _results;
+            _ref1 = data.ids;
+            _results = [];
+            for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+              id = _ref1[_i];
+              _results.push(canvas.item(id));
+            }
+            return _results;
+          })()).reverse());
+          canvas.setActiveGroup(_this.selection, e);
         }
-        _this.selection.setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords();
-        canvas.renderAll();
-        return _this.isSelecting = true;
+        _this.selection.setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords(true);
+        _this.selection.saveCoords();
+        _this.isSelecting = true;
+        return canvas.renderAll();
       } else {
         canvas.item(data.ids[0]).setAngle(prop.angle).setLeft(prop.left).setTop(prop.top).scale(prop.scale).setCoords();
         return canvas.renderAll();
       }
     });
     return this.TJS.hub.on('selectionEnd', function(data) {
-      var object, _i, _len, _ref1;
       if (!_this.isSelecting || (_this.selection == null)) {
         return;
       }
-      _ref1 = _this.selection._objects;
-      for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-        object = _ref1[_i];
-        canvas.add(object);
-      }
-      _this.selection._restoreObjectsState();
-      canvas.remove(_this.selection);
-      canvas.renderAll();
+      _this.selection = void 0;
       return _this.isSelecting = false;
     });
   };
